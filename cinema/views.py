@@ -3,55 +3,54 @@ from rest_framework.response import Response
 from rest_framework import status, generics, mixins, viewsets
 
 from django.shortcuts import get_object_or_404
+from rest_framework.views import APIView
 
 from cinema.models import Genre, Actor, Movie, CinemaHall
 from cinema.serializers import (
     GenreSerializer,
     ActorSerializer,
     MovieSerializer,
-    CinemaHallSerializer
+    CinemaHallSerializer,
 )
 
 
-@api_view(["GET", "POST"])
-def genre_list(request):
-    if request.method == "GET":
+class GenreList(APIView):
+    def get(self, request):
         genres = Genre.objects.all()
         serializer = GenreSerializer(genres, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    if request.method == "POST":
+    def post(self, request):
         serializer = GenreSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-@api_view(["GET", "PUT", "PATCH", "DELETE"])
-def genre_detail(request, pk):
-    genre = get_object_or_404(Genre, pk=pk)
+class GenreDetail(APIView):
+    def get_object(self, pk: int):
+        return get_object_or_404(Genre, pk=pk)
 
-    if request.method == "GET":
-        serializer = GenreSerializer(genre)
+    def get(self, request, pk: int) -> Response:
+        serializer = GenreSerializer(self.get_object(pk=pk))
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    if request.method == "PUT":
-        serializer = GenreSerializer(genre, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def put(self, request, pk: int) -> Response:
+        serializer = GenreSerializer(self.get_object(pk=pk), data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    if request.method == "PATCH":
-        serializer = GenreSerializer(genre, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def patch(self, request, pk: int) -> Response:
+        serializer = GenreSerializer(
+            self.get_object(pk=pk), data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    if request.method == "DELETE":
-        genre.delete()
+    def delete(self, request, pk: int) -> Response:
+        self.get_object(pk=pk).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -97,13 +96,13 @@ class ActorDetail(
         return self.destroy(request, *args, **kwargs)
 
 
-class CinemaHallList(generics.ListCreateAPIView):
-    queryset = CinemaHall.objects.all()
-    serializer_class = CinemaHallSerializer
-
-
-class CinemaHallDetail(
-    generics.RetrieveUpdateDestroyAPIView
+class CinemaHallViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
 ):
     queryset = CinemaHall.objects.all()
     serializer_class = CinemaHallSerializer
